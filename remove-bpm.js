@@ -5,7 +5,7 @@ import NodeID3 from 'node-id3';
 import fetch from 'node-fetch';
 
 // Obtener el argumento de línea de comandos
-const musicFolder = "/mnt/c/Users/PCFRANCO/Music/2025/cuenca";
+const musicFolder = "/mnt/c/Users/PCFRANCO/Music/2025/batea";
 
 // Función para obtener imagen de Deezer
 async function getCoverImageFromDeezer(artist, title) {
@@ -30,6 +30,15 @@ async function getCoverImageFromDeezer(artist, title) {
 }
 
 // Función para procesar un archivo
+// Function to convert text to proper case
+function toProperCase(text) {
+  return text
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 async function processFile(fullPath, missingFolder) {
   const file = path.basename(fullPath);
   const ext = path.extname(file).toLowerCase();
@@ -37,66 +46,47 @@ async function processFile(fullPath, missingFolder) {
   if (!['.mp3'].includes(ext)) return;
 
   try {
-    const metadata = await mm.parseFile(fullPath);
-    const { title, year, album, performerInfo, picture } = metadata.common;
-    let { artist } = metadata.common;
-    const { bitrate } = metadata.format;
-
-    // Verificar metadata y bitrate
-    if (!artist || !title || !bitrate || bitrate < 320000) {
-      const reason = !artist || !title ? 
-        'falta de metadata' : 
-        `calidad insuficiente (${Math.round(bitrate/1000)}kbps)`;
-      
-      if (!missingFolder) {
-        missingFolder = path.join(path.dirname(fullPath), 'missing');
-        if (!fs.existsSync(missingFolder)) {
-          fs.mkdirSync(missingFolder);
-        }
-      }
-      
-      console.log(`⏭️ Moviendo a missing por ${reason}: ${file}`);
-      const missingPath = path.join(missingFolder, file);
-      fs.renameSync(fullPath, missingPath);
+    // Extract artist and title from filename
+    const nameWithoutExt = path.basename(file, ext);
+    // Remove BPM prefix and get the actual name
+    const cleanName = nameWithoutExt.replace(/^\d+\s*BPM\s*/, '').trim();
+    const splitIndex = cleanName.indexOf('-');
+    
+    if (splitIndex === -1) {
+      console.log(`⏭️ Skipping (no artist-title separator): ${file}`);
       return;
     }
 
-    // Combinar artistas
-    const artistList = [artist, ...(performerInfo || [])].join(', ').replace(/;/g, ', ').trim();
+    const artist = toProperCase(cleanName.substring(0, splitIndex).trim());
+    const title = toProperCase(cleanName.substring(splitIndex + 1).trim());
 
-    const newName = `${artistList} - ${title.trim()}${ext}`;
-    const newPath = path.join(path.dirname(fullPath), newName);
-
-    // Manejo de portadas
-    let imageBuffer = null;
-    
-    if (!picture?.length > 0) {
-      // Si no tiene imagen, intentar descargar una de Deezer
-      imageBuffer = await getCoverImageFromDeezer(artist, title);
-      if (imageBuffer) {
-        console.log(`🖼️ Imagen descargada con éxito: ${file}`);
-      }
-    }
-
-    // Etiquetas básicas (sin imagen)
+    // Update metadata
     const tags = {
-      title: title.trim(),
-      artist: artistList,
-      album: album || 'Desconocido',
-      year: year || ''
+      title: title,
+      artist: artist,
+      album: 'Unknown',
+      year: ''
     };
 
-    // Primero actualizar las etiquetas básicas
+    // Update metadata first
     NodeID3.update(tags, fullPath);
 
-    // Si hay una nueva imagen para agregar, hacerlo en una operación separada
-    if (!picture?.length && imageBuffer) {
+    // Try to get cover art from Deezer
+    const imageBuffer = await getCoverImageFromDeezer(artist, title);
+    if (imageBuffer) {
       NodeID3.update({ image: imageBuffer }, fullPath);
+      console.log(`🖼️ Imagen descargada con éxito: ${file}`);
     }
 
-    // Renombrar archivo
+    // Rename the file with proper case
+    const newName = `${artist} - ${title}${ext}`;
+    const newPath = path.join(path.dirname(fullPath), newName);
     fs.renameSync(fullPath, newPath);
-    console.log(`✅ Renombrado: ${file} → ${newName}`);
+    
+    console.log(`✅ Procesado: ${file} → ${newName}`);
+    console.log(`   Artista: ${artist}`);
+    console.log(`   Título: ${title}`);
+
   } catch (e) {
     console.error(`❌ Error en ${file}: ${e.message}`);
   }

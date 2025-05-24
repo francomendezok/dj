@@ -5,7 +5,7 @@ import NodeID3 from 'node-id3';
 import fetch from 'node-fetch';
 
 // Folder to process
-const musicFolder = "/mnt/d/Musica/img";
+const musicFolder = "/mnt/c/Users/PCFRANCO/Music/2025/cuenca";
 
 // Function to get cover from Deezer
 async function getCoverFromDeezer(artist, title) {

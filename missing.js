@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 // Target directory where all files will be moved - using WSL path
-const targetDir = "/mnt/d/Musica/faltantes";
+const targetDir = "/mnt/c/Users/PCFRANCO/Music/2025/faltantes";
 
 // Function to ensure target directory exists
 function ensureTargetDirectory() {
@@ -75,7 +75,7 @@ async function main() {
     ensureTargetDirectory();
     
     // Start searching from music directory
-    const musicDir = "/mnt/d/Musica";
+    const musicDir = "/mnt/c/Users/PCFRANCO/Music";
     console.log(`🔍 Searching for "missing" folders in ${musicDir}...`);
     
     await findMissingFolders(musicDir);
